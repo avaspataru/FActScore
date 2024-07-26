@@ -79,6 +79,27 @@ python -m factscore.factscorer --input_path {input_path} --model_name {estimator
 - `--abstain_detection`: This flag optionally enables automatic detection of abstained responses. By default this is disabled, but it is recommended to add your own function tailored to your model. The currently supported detectors are `"generic"` and `"perplexity_ai"`, and their implementations can be found in [`factscore/abstain_detection.py`](factscore/abstain_detection.py). There are two methods to add your own abstain function: a) clone our GitHub repository to install `factscore` locally (`pip install --editable .`), and then add your function to [`factscore/abstain_detection.py`](factscore/abstain_detection.py) directly; b) process your abstain detection outside our package, and use empty strings in the `output` key for the JSONL file used in `--input_path`.
 - `--knowledge_source`: In case the default knowledge source (Wikipedia - 2023/04/01) will not be used, preprocess it using the [instructions below](#To-use-a-custom-knowledge-source), and then specify the knowledge_source name under this flag.
 
+## Using Semantic Drift Scoring
+
+Semantic drift score (SD score) is a measure of how the model's responses degenerate with length. Defined in [Know When To Stop: A Study of Semantic Drift in Text Generation](Know When To Stop: A Study of Semantic Drift in Text Generation).
+
+```
+out = fs.get_score(topics, generations, gamma=10)
+print(out['sd_score']) # Mean semantic drift score over the dataset
+print(out['drift_points']) # Drift point per topic
+```
+
+If you find this score useful in your research, please cite:
+```
+@inproceedings{spataru-2024-know,
+    title = "Know When To Stop: A Study of Semantic Drift in Text Generation",
+    author = "Spataru, Ava  and Hambro, Eric  and Voita, Elena  and Cancedda, Nicola",
+    booktitle = "Proceedings of the 2024 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies (Volume 1: Long Papers)",
+    year = "2024",
+    url = "https://aclanthology.org/2024.naacl-long.202",
+}
+```
+
 ## To evaluate your own LM
 
 There're two sets of prompt entities, `data/labeled/prompt_entities.txt` (183 entities) and `data/unlabeled/prompt_entities.txt` (500 entities). Each line contains the name of the person (which is also a corresponding Wikipedia title). You can use the labeled version if you want to be compatible with the data under `data/labeled` (Section 3 and Section 4.2 in the paper), and use the unlabeled version if you want to be compatible with the data under `data/unlabeled` (Section 4.3 in the paper).
@@ -177,4 +198,3 @@ for fn in os.listdir(dirname):
         fn.split(".")[0], len(n_facts)*100/500, np.mean(n_facts), np.mean(chatgpt_fs)*100, np.mean(llama_fs)*100
     ))
 ```
-

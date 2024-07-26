@@ -175,6 +175,7 @@ class FactScorer(object):
             topics = tqdm(topics)
 
         scores = []
+        sd_scores = []
         init_scores = []
         decisions = []
         for topic, generation, facts in zip(topics, generations, atomic_facts):
@@ -182,7 +183,9 @@ class FactScorer(object):
                 decisions.append(None)
             else:
                 decision = self._get_score(topic, generation, facts, knowledge_source)
-                score = np.mean([d["is_supported"] for d in decision])
+                decisions = [d["is_supported"] for d in decision]
+                score = np.mean(decisions)
+                sd_score = self._get_sd_score(decisions)
                 
                 if gamma:
                     init_scores.append(score)
@@ -191,6 +194,7 @@ class FactScorer(object):
                 
                 decisions.append(decision)
                 scores.append(score)
+                sd_scores.append(sd_score)
                 if len(scores) % 10 == 0:
                     self.save_cache()
 
@@ -199,7 +203,10 @@ class FactScorer(object):
         out = {"score": np.mean(scores),
                "respond_ratio": respond_ratio,
                "decisions": decisions,
-               "num_facts_per_response": np.mean([len(d) for d in decisions if d is not None])}
+               "num_facts_per_response": np.mean([len(d) for d in decisions if d is not None]),
+               "sd_score": np.mean([sc["value"] for sc in sd_scores]),
+               "sd_scores": [sc["value"] for sc in sd_scores],
+               "drift_points": [sc["drift_point"] for sc in sd_scores],}
 
         if gamma:
             out["init_score"] = np.mean(init_scores)
@@ -264,6 +271,13 @@ class FactScorer(object):
             return total_words
         else:
             return decisions
+
+    def _get_sd_score(self, decisions): 
+        sd_scores = [((np.sum(decisions[:k+1]) / (k+1)) + (np.sum(decisions[k+1:]) / (len(decisions)-k-1))) / 2 for k in range(len(decisions))]
+        return {
+            "value": np.max(sd_scores),
+            "drift_point": np.argmax(sd_scores),
+        }
 
 if __name__ == '__main__':
 
@@ -363,4 +377,3 @@ if __name__ == '__main__':
     # Save out as a json file
     with open(args.input_path.replace(".jsonl", f"_factscore_output.json"), 'w') as f:
         f.write(json.dumps(out) + "\n")
-
